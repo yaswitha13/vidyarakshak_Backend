@@ -1,0 +1,16 @@
+[
+    {
+        "id": 13,
+        "name": "jaya",
+        "email": "jaya13@gmail.com",
+        "password": null,
+        "subject": "Telugu",
+        "phone": "963852741",
+        "class_assigned": "7",
+        "status": "REJECTED",
+        "school_code": "government high scho",
+        "created_at": "2026-03-16 09:51:03",
+        "gender": null,
+        "teacher_id": "tch006"
+    }
+]

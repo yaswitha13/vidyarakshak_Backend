@@ -1,0 +1,877 @@
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+import os
+from config import Config
+
+app = Flask(__name__)
+app.config.from_object(Config)
+db = SQLAlchemy(app)
+
+from datetime import datetime
+
+# User Model
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True) # Optional for some roles
+    password = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='Admin') # Admin, Teacher, Parent
+    school_code = db.Column(db.String(20), nullable=True)
+    class_assigned = db.Column(db.String(20), nullable=True) # For Teachers
+    roll_no = db.Column(db.String(50), nullable=True) # For Parents
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<User {self.full_name} ({self.role})>'
+
+# Teacher Model (Separate table as requested)
+class Teacher(db.Model):
+    __tablename__ = 'teachers'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True) # Set during approval
+    password = db.Column(db.String(200), nullable=True)        # Set during approval
+    subject = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
+    gender = db.Column(db.String(10)) # Male, Female
+    class_assigned = db.Column(db.String(20))
+    status = db.Column(db.String(20), default='PENDING') # PENDING, APPROVED, REJECTED
+    school_code = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Teacher {self.name} ({self.status})>'
+
+# Admin Profile Model
+class AdminProfile(db.Model):
+    __tablename__ = 'admin_profiles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(20))
+    gender = db.Column(db.String(10)) # Male, Female
+    role = db.Column(db.String(50), default='Administrator')
+    school = db.Column(db.String(100))
+    state = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AdminProfile {self.name}>'
+
+# Student Model
+class Student(db.Model):
+    __tablename__ = 'students'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    class_name = db.Column(db.String(20), nullable=False)
+    roll_no = db.Column(db.String(20), nullable=False, unique=True)
+    gender = db.Column(db.String(10))
+    dob = db.Column(db.String(20))
+    
+    # Risk Related Fields
+    total_classes = db.Column(db.Integer, default=0)
+    present_days = db.Column(db.Integer, default=0)
+    absent_days = db.Column(db.Integer, default=0)
+    attendance_percentage = db.Column(db.Float, default=100.0)
+    attendance = db.Column(db.Integer, default=100) # For backward compatibility
+    risk_level = db.Column(db.String(10), default='LOW') # LOW, MEDIUM, HIGH
+    
+    # Ecosystem Factors
+    family_income = db.Column(db.String(100))
+    parents_edu = db.Column(db.String(100))
+    parents_occ = db.Column(db.String(100))
+    distance = db.Column(db.String(50))
+    num_siblings = db.Column(db.Integer, default=0)
+    home_env = db.Column(db.String(100))
+    housing_cond = db.Column(db.String(100))
+    migration_risk = db.Column(db.String(100))
+    learning_res = db.Column(db.String(100))
+    parent_involv = db.Column(db.String(100))
+    
+    parent_name = db.Column(db.String(100))
+    mobile_number = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Alert Model
+class Alert(db.Model):
+    __tablename__ = 'alerts'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'))
+    student_name = db.Column(db.String(100))
+    roll_no = db.Column(db.String(20))
+    message = db.Column(db.String(200))
+    risk_level = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Counseling/Behavior Record Model
+class CounselingRecord(db.Model):
+    __tablename__ = 'counseling_records'
+    id = db.Column(db.Integer, primary_key=True)
+    student_roll_no = db.Column(db.String(20), nullable=False)
+    student_name = db.Column(db.String(100))
+    class_name = db.Column(db.String(20))
+    counselor_name = db.Column(db.String(100))
+    session_date = db.Column(db.String(20))
+    counseling_type = db.Column(db.String(100))
+    dropout_reason = db.Column(db.String(100))
+    student_mood = db.Column(db.String(100))
+    progress_status = db.Column(db.String(100))
+    behavior_observation = db.Column(db.String(100))
+    parent_involvement = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+    action_plan = db.Column(db.Text)
+    followup_date = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Attendance Log Model
+class AttendanceLog(db.Model):
+    __tablename__ = 'attendance_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    student_roll_no = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(10), nullable=False) # PRESENT, ABSENT
+    reason = db.Column(db.String(200)) # Medical, Family, etc.
+    entry_date = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Create the database tables
+with app.app_context():
+    db.create_all()
+
+@app.route('/')
+def home():
+    return "<h1>VidyaRakshak Backend is Running!</h1><p>The server is reachable from your mobile.</p>"
+
+def calculate_dropout_risk(s):
+    high_factors = 0
+    med_factors = 0
+    
+    # 1. Attendance Calculation (Dynamic Classes/Present/Absent)
+    total_classes = s.total_classes or 0
+    present_days = s.present_days or 0
+    absent_days = s.absent_days or 0
+    
+    if total_classes > 0:
+        s.attendance_percentage = (present_days / total_classes) * 100
+    else:
+        s.attendance_percentage = 100.0
+    
+    s.attendance = int(s.attendance_percentage) # Sync the integer field
+    
+    # Determine base risk purely from attendance as requested
+    attendance_risk = "LOW"
+    if s.attendance_percentage < 65:
+        attendance_risk = "HIGH"
+        high_factors += 1
+    elif s.attendance_percentage < 85:
+        attendance_risk = "MEDIUM"
+        med_factors += 1
+
+    # 2. Family Income
+    income = (s.family_income or "").lower()
+    if "below" in income or "50,000" in income and "below" in income: high_factors += 1
+    elif "1.5L" in income or "50,000" in income: med_factors += 1
+
+    # 3. Distance
+    dist = (s.distance or "").lower()
+    if "5" in dist and "more" in dist or "> 5" in dist: high_factors += 1
+    elif "2" in dist or "5" in dist: med_factors += 1
+
+    # 4. Parents Education
+    edu = (s.parents_edu or "").lower()
+    if "no schooling" in edu: high_factors += 1
+    elif "primary" in edu: med_factors += 1
+
+    # 5. Parents Occupation
+    occ = (s.parents_occ or "").lower()
+    if "labor" in occ or "seasonal" in occ: high_factors += 1
+    elif "small business" in occ: med_factors += 1
+
+    # 6. Siblings
+    num_siblings = s.num_siblings or 0
+    if num_siblings >= 3: high_factors += 1
+    elif num_siblings >= 1: med_factors += 1
+
+    # 7. Home Environment
+    env = (s.home_env or "").lower()
+    if "unsafe" in env or "conflict" in env: high_factors += 1
+    elif "average" in env: med_factors += 1
+
+    # 8. Housing Condition
+    housing = (s.housing_cond or "").lower()
+    if "temporary" in housing or "hut" in housing: high_factors += 1
+    elif "rent" in housing: med_factors += 1
+
+    # 9. Migration Risk
+    mig = (s.migration_risk or "").lower()
+    if "frequent" in mig: high_factors += 1
+    elif "sometimes" in mig: med_factors += 1
+
+    # 10. Learning Resources
+    res = (s.learning_res or "").lower()
+    if "no phone" in res or "no internet" in res or "limited books" in res: high_factors += 1
+    elif "limited" in res: med_factors += 1
+
+    # 11. Parent Involvement
+    inv = (s.parent_involv or "").lower()
+    if "never" in inv: high_factors += 1
+    elif "sometimes" in inv: med_factors += 1
+
+    # FINAL CALCULATION
+    old_risk = s.risk_level
+    
+    # Priority 1: Attendance Risk Levels requested by user
+    # Priority 2: Multi-factor threshold (4 factors)
+    if attendance_risk == "HIGH" or high_factors >= 4:
+        s.risk_level = "HIGH"
+    elif attendance_risk == "MEDIUM" or med_factors >= 4:
+        s.risk_level = "MEDIUM"
+    else:
+        s.risk_level = "LOW"
+
+    # Generate Alert if High Risk
+    if s.risk_level == "HIGH" and old_risk != "HIGH":
+        alert = Alert(
+            student_id=s.id,
+            student_name=s.name,
+            roll_no=s.roll_no,
+            message=f"Student {s.name} has moved to HIGH DROPOUT RISK category.",
+            risk_level="HIGH"
+        )
+        db.session.add(alert)
+
+@app.route('/signup', methods=['POST'])
+def signup():
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No input data provided"}), 400
+    
+    full_name = data.get('full_name')
+    email = data.get('email')
+    password = data.get('password')
+    confirm_password = data.get('confirm_password')
+    role = data.get('role', 'Admin')
+    school_code = data.get('school_code', '102')
+    class_assigned = data.get('class_assigned')
+    student_id = data.get('student_id')
+
+    if not all([full_name, password, confirm_password]):
+        return jsonify({"message": "Please enter all required details"}), 400
+
+    if password != confirm_password:
+        return jsonify({"message": "Passwords do not match"}), 400
+
+    if email and User.query.filter_by(email=email).first():
+        return jsonify({"message": "User with this email already exists"}), 400
+
+    new_user = User(
+        full_name=full_name,
+        email=email,
+        password=password,
+        role=role,
+        school_code=school_code,
+        class_assigned=class_assigned,
+        roll_no=roll_no
+    )
+    
+    try:
+        db.session.add(new_user)
+        
+        # If Admin, also create Profile
+        if role == 'Admin':
+            profile = AdminProfile(
+                name=full_name,
+                email=email,
+                phone="", # Default empty
+                school=school_code, # Or a separate school name if available
+                state=""
+            )
+            db.session.add(profile)
+            
+        db.session.commit()
+        return jsonify({"message": "Account created successfully!"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": f"Database error: {str(e)}"}), 500
+
+@app.route('/add-student', methods=['POST'])
+def add_student():
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No input student data"}), 400
+    
+    name = data.get('name')
+    class_name = data.get('class_name')
+    roll_no = data.get('roll_no')
+    
+    if not all([name, class_name, roll_no]):
+        return jsonify({"message": "Name, Class, and Roll No are required"}), 400
+
+    if Student.query.filter_by(roll_no=roll_no).first():
+        return jsonify({"message": f"Student with Roll No {roll_no} already exists"}), 400
+
+    new_student = Student(
+        name=name,
+        class_name=class_name,
+        roll_no=roll_no,
+        gender=data.get('gender'),
+        dob=data.get('dob'),
+        family_income=data.get('family_income'),
+        parents_edu=data.get('parents_edu'),
+        parents_occ=data.get('parents_occ'),
+        distance=data.get('distance'),
+        num_siblings=int(data.get('num_siblings', 0) or 0),
+        home_env=data.get('home_env'),
+        housing_cond=data.get('housing_cond'),
+        migration_risk=data.get('migration_risk'),
+        learning_res=data.get('learning_res'),
+        parent_involv=data.get('parent_involv'),
+        parent_name=data.get('parent_name'),
+        mobile_number=data.get('mobile_number'),
+        total_classes=int(data.get('total_classes', 0) or 0),
+        present_days=int(data.get('present_days', 0) or 0),
+        absent_days=int(data.get('absent_days', 0) or 0)
+    )
+    
+    try:
+        db.session.add(new_student)
+        db.session.flush() # Ensure ID is generated for potential alerts
+        
+        # Calculate Risk AFTER adding to session
+        calculate_dropout_risk(new_student)
+        
+        db.session.commit()
+        return jsonify({"message": "Student added successfully and risk evaluated!"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": f"Database error: {str(e)}"}), 500
+
+@app.route('/update-student', methods=['POST'])
+def update_student():
+    data = request.get_json()
+    roll_no = data.get('roll_no')
+    if not roll_no:
+        return jsonify({"message": "Roll No is required to update"}), 400
+        
+    student = Student.query.filter_by(roll_no=roll_no).first()
+    if not student:
+        return jsonify({"message": "Student not found"}), 404
+        
+    # Update fields if provided
+    student.name = data.get('name', student.name)
+    student.class_name = data.get('class_name', student.class_name)
+    student.gender = data.get('gender', student.gender)
+    student.dob = data.get('dob', student.dob)
+    student.family_income = data.get('family_income', student.family_income)
+    student.parents_edu = data.get('parents_edu', student.parents_edu)
+    student.parents_occ = data.get('parents_occ', student.parents_occ)
+    student.distance = data.get('distance', student.distance)
+    student.num_siblings = data.get('num_siblings', student.num_siblings)
+    student.home_env = data.get('home_env', student.home_env)
+    student.housing_cond = data.get('housing_cond', student.housing_cond)
+    student.migration_risk = data.get('migration_risk', student.migration_risk)
+    student.learning_res = data.get('learning_res', student.learning_res)
+    student.parent_involv = data.get('parent_involv', student.parent_involv)
+    student.parent_name = data.get('parent_name', student.parent_name)
+    student.mobile_number = data.get('mobile_number', student.mobile_number)
+    student.total_classes = int(data.get('total_classes', student.total_classes) or 0)
+    student.present_days = int(data.get('present_days', student.present_days) or 0)
+    student.absent_days = int(data.get('absent_days', student.absent_days) or 0)
+    
+    # Recalculate risk in case ecosystem factors changed
+    calculate_dropout_risk(student)
+    
+    try:
+        db.session.commit()
+        return jsonify({"message": "Student updated successfully!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/admin/delete-student', methods=['POST'])
+def delete_student():
+    data = request.get_json()
+    admin_email = data.get('admin_email')
+    roll_no = data.get('roll_no')
+    
+    # Simple authority check
+    admin = User.query.filter_by(email=admin_email, role='Admin').first()
+    if not admin:
+        return jsonify({"message": "Only Admins can delete student records"}), 403
+        
+    student = Student.query.filter_by(roll_no=roll_no).first()
+    if not student:
+        return jsonify({"message": "Student not found"}), 404
+        
+    try:
+        db.session.delete(student)
+        db.session.commit()
+        return jsonify({"message": "Student account deleted by Admin"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/admin/delete-user', methods=['POST'])
+def delete_user():
+    data = request.get_json()
+    admin_email = data.get('admin_email')
+    target_email = data.get('target_email')
+    
+    # Authority check
+    admin = User.query.filter_by(email=admin_email, role='Admin').first()
+    if not admin:
+        return jsonify({"message": "Only Admins can delete user accounts"}), 403
+        
+    user = User.query.filter_by(email=target_email).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+        
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"message": f"User account {target_email} deleted by Admin"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/save-attendance', methods=['POST'])
+def save_attendance():
+    """
+    Expects bulk attendance for a class.
+    Format: {
+      "class_name": "10th",
+      "date": "2024-03-12",
+      "records": [
+         {"roll_no": "101", "status": "PRESENT", "reason": ""},
+         {"roll_no": "102", "status": "ABSENT", "reason": "Sick"}
+      ]
+    }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No input data"}), 400
+        
+    class_name = data.get('class_name')
+    date = data.get('date')
+    records = data.get('records', [])
+    
+    if not class_name or not records:
+        return jsonify({"message": "Class name and records are required"}), 400
+        
+    try:
+        updated_count = 0
+        for entry in records:
+            roll_no = entry.get('roll_no')
+            status = entry.get('status', 'PRESENT')
+            reason = entry.get('reason', '')
+            
+            student = Student.query.filter_by(roll_no=roll_no, class_name=class_name).first()
+            if student:
+                student.total_classes += 1
+                if status == 'ABSENT':
+                    student.absent_days += 1
+                else:
+                    student.present_days += 1
+                
+                # Recalculate Risk
+                calculate_dropout_risk(student)
+                
+                # Log entry
+                log = AttendanceLog(
+                    student_roll_no=roll_no,
+                    status=status,
+                    reason=reason,
+                    entry_date=date
+                )
+                db.session.add(log)
+                updated_count += 1
+        
+        db.session.commit()
+        return jsonify({"message": f"Attendance saved for {updated_count} students.", "status": "Success"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/mark-attendance', methods=['POST'])
+def mark_attendance():
+    data = request.get_json()
+    roll_no = data.get('roll_no')
+    status = data.get('status', 'PRESENT') # EXPECTS 'PRESENT' or 'ABSENT'
+    
+    student = Student.query.filter_by(roll_no=roll_no).first()
+    if not student:
+        return jsonify({"message": "Student not found"}), 404
+        
+    student.total_classes += 1
+    if status == 'ABSENT':
+        student.absent_days += 1
+    else:
+        student.present_days += 1
+    
+    # Recalculate risk
+    calculate_dropout_risk(student)
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            "message": f"Attendance marked as {status}",
+            "attendance_percentage": round(student.attendance_percentage, 2),
+            "risk_level": student.risk_level
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/get-alerts', methods=['GET'])
+def get_alerts():
+    alerts = Alert.query.order_by(Alert.created_at.desc()).all()
+    output = []
+    for a in alerts:
+        output.append({
+            "id": a.id,
+            "student_name": a.student_name,
+            "roll_no": a.roll_no,
+            "message": a.message,
+            "risk_level": a.risk_level,
+            "created_at": a.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return jsonify(output), 200
+
+@app.route('/add-counseling', methods=['POST'])
+def add_counseling():
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No input data"}), 400
+        
+    new_record = CounselingRecord(
+        student_roll_no=data.get('student_roll_no'),
+        student_name=data.get('student_name'),
+        class_name=data.get('class_name'),
+        counselor_name=data.get('counselor_name'),
+        session_date=data.get('session_date'),
+        counseling_type=data.get('counseling_type'),
+        dropout_reason=data.get('dropout_reason'),
+        student_mood=data.get('student_mood'),
+        progress_status=data.get('progress_status'),
+        behavior_observation=data.get('behavior_observation'),
+        parent_involvement=data.get('parent_involvement'),
+        notes=data.get('notes'),
+        action_plan=data.get('action_plan'),
+        followup_date=data.get('followup_date')
+    )
+    
+    try:
+        db.session.add(new_record)
+        db.session.commit()
+        return jsonify({"message": "Counseling session recorded successfully!"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/get-counseling', methods=['GET'])
+def get_counseling():
+    roll_no = request.args.get('roll_no')
+    counselor_name = request.args.get('counselor_name')
+    
+    query = CounselingRecord.query
+    if roll_no:
+        query = query.filter_by(student_roll_no=roll_no)
+    if counselor_name:
+        query = query.filter_by(counselor_name=counselor_name)
+    
+    records = query.order_by(CounselingRecord.session_date.desc()).all()
+        
+    output = []
+    for r in records:
+        output.append({
+            "student_roll_no": r.student_roll_no,
+            "student_name": r.student_name,
+            "class_name": r.class_name,
+            "counselor_name": r.counselor_name,
+            "session_date": r.session_date,
+            "counseling_type": r.counseling_type,
+            "dropout_reason": r.dropout_reason,
+            "student_mood": r.student_mood,
+            "progress_status": r.progress_status,
+            "behavior_observation": r.behavior_observation,
+            "parent_involvement": r.parent_involvement,
+            "notes": r.notes,
+            "action_plan": r.action_plan,
+            "followup_date": r.followup_date
+        })
+    return jsonify(output), 200
+
+@app.route('/get-students', methods=['GET'])
+def get_students():
+    students = Student.query.all()
+    output = []
+    for s in students:
+        output.append({
+            "name": s.name, 
+            "class_name": s.class_name, 
+            "roll_no": s.roll_no,
+            "gender": s.gender, 
+            "dob": s.dob, 
+            "attendance": s.attendance,
+            "risk_level": s.risk_level, 
+            "mobile_number": s.mobile_number, 
+            "parent_name": s.parent_name,
+            "family_income": s.family_income,
+            "parents_edu": s.parents_edu,
+            "parents_occ": s.parents_occ,
+            "distance": s.distance,
+            "total_classes": s.total_classes,
+            "present_days": s.present_days,
+            "absent_days": s.absent_days,
+            "num_siblings": s.num_siblings,
+            "home_env": s.home_env,
+            "housing_cond": s.housing_cond,
+            "migration_risk": s.migration_risk,
+            "learning_res": s.learning_res,
+            "parent_involv": s.parent_involv
+        })
+    return jsonify(output), 200
+
+@app.route('/student-stats', methods=['GET'])
+def student_stats():
+    from sqlalchemy import func
+    results = db.session.query(
+        Student.risk_level, 
+        func.count(Student.id)
+    ).group_by(Student.risk_level).all()
+    
+    stats = {
+        "total_students": 0,
+        "high_risk_count": 0,
+        "low_risk_count": 0,
+        "medium_risk_count": 0
+    }
+    
+    for risk, count in results:
+        stats["total_students"] += count
+        if risk == 'HIGH': stats["high_risk_count"] = count
+        elif risk == 'LOW': stats["low_risk_count"] = count
+        elif risk == 'MEDIUM': stats["medium_risk_count"] = count
+        
+    return jsonify(stats), 200
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No input data provided"}), 400
+
+    role = data.get('role', 'Admin')
+    school_code = data.get('school_code', '').strip()
+    password = data.get('password', '').strip()
+    
+    print(f"DEBUG: Login Attempt - Role: {role}, School: {school_code}")
+
+    user = None
+    # Selection based on role
+    if role == 'Admin':
+        email = data.get('email', '').strip()
+        print(f"DEBUG: Admin Log - Email: {email}")
+        if not all([school_code, email, password]):
+            return jsonify({"message": "Please enter school code, email and password"}), 400
+        user = User.query.filter_by(email=email, school_code=school_code, role='Admin').first()
+
+    elif role == 'Teacher':
+        email = data.get('email', '').strip()
+        print(f"DEBUG: Teacher Log - Email: '{email}', Pwd: '{password}'")
+        if not all([email, password]):
+            return jsonify({"message": "Please enter email and password"}), 400
+            
+        user = Teacher.query.filter_by(email=email, password=password).first()
+        if not user:
+            # Fallback check: trace if email exists at all
+            exists = Teacher.query.filter_by(email=email).first()
+            if exists:
+                print(f"DEBUG: Teacher email exists but password mismatch: '{exists.password}' vs '{password}'")
+            else:
+                print(f"DEBUG: Teacher email '{email}' NOT found in database")
+            return jsonify({"message": "Invalid email or password"}), 401
+
+    elif role == 'Parent':
+        roll_no = data.get('roll_no')
+        print(f"DEBUG: Parent RollNo: {roll_no}")
+        if not all([school_code, roll_no, password]):
+            return jsonify({"message": "Please enter school code, Roll No and password"}), 400
+        user = User.query.filter_by(roll_no=roll_no, school_code=school_code, role='Parent').first()
+    
+    else:
+        return jsonify({"message": "Invalid role specified"}), 400
+
+    if user and user.password == password:
+        return jsonify({
+            "message": "Login successful",
+            "user": {
+                "full_name": user.full_name if hasattr(user, 'full_name') else user.name,
+                "role": role,
+                "class_assigned": user.class_assigned if hasattr(user, 'class_assigned') else None
+            }
+        }), 200
+    else:
+        return jsonify({"message": "Invalid credentials"}), 401
+
+# ── Teacher Management ──────────────────────────────────────────────────────
+
+@app.route('/add-teacher', methods=['POST'])
+def add_teacher():
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No data provided"}), 400
+    
+    new_teacher = Teacher(
+        name=data.get('name'),
+        subject=data.get('subject'),
+        phone=data.get('phone'),
+        class_assigned=data.get('class_assigned'),
+        school_code=data.get('school_code', 'SCH123'),
+        status='PENDING'
+    )
+    
+    try:
+        db.session.add(new_teacher)
+        db.session.commit()
+        return jsonify({"message": "Teacher registered for approval!"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/get-teachers', methods=['GET'])
+def get_teachers():
+    teachers = Teacher.query.all()
+    output = []
+    for t in teachers:
+        output.append({
+            "id": t.id,
+            "name": t.name,
+            "email": t.email,
+            "subject": t.subject,
+            "phone": t.phone,
+            "class_assigned": t.class_assigned,
+            "status": t.status
+        })
+    return jsonify(output), 200
+
+@app.route('/update-teacher-status', methods=['POST'])
+def update_teacher_status():
+    data = request.get_json()
+    teacher_id = data.get('id')
+    new_status = data.get('status')
+    
+    teacher = Teacher.query.get(teacher_id)
+    if not teacher:
+        return jsonify({"message": "Teacher not found"}), 404
+    
+    teacher.status = new_status
+    
+    # If approved, set credentials
+    if new_status == 'APPROVED':
+        email = data.get('email')
+        password = data.get('password')
+        if not email or not password:
+            return jsonify({"message": "Email and password are required for approval"}), 400
+        teacher.email = email
+        teacher.password = password
+    
+    try:
+        db.session.commit()
+        return jsonify({"message": f"Teacher {new_status.lower()} successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+# ── Dashboard Insights ──────────────────────────────────────────────────────
+
+@app.route('/recent-high-risk', methods=['GET'])
+def recent_high_risk():
+    high_risk_students = Student.query.filter_by(risk_level='HIGH').order_by(Student.created_at.desc()).limit(3).all()
+    output = []
+    for s in high_risk_students:
+        output.append({
+            "name": s.name,
+            "class_name": s.class_name,
+            "attendance": f"{s.attendance_percentage}%"
+        })
+    return jsonify(output), 200
+
+# ── Admin Profile Endpoints ─────────────────────────────────────────────────
+
+@app.route('/get-admin-profile', methods=['GET'])
+def get_admin_profile():
+    email = request.args.get('email')
+    if not email:
+        return jsonify({"message": "Email is required"}), 400
+    
+    profile = AdminProfile.query.filter_by(email=email).first()
+    if not profile:
+        # Fallback: check if User exists and create profile if missing
+        user = User.query.filter_by(email=email, role='Admin').first()
+        if user:
+            profile = AdminProfile(name=user.full_name, email=user.email)
+            db.session.add(profile)
+            db.session.commit()
+        else:
+            return jsonify({"message": "Admin profile not found"}), 404
+            
+    return jsonify({
+        "name": profile.name,
+        "email": profile.email,
+        "phone": profile.phone,
+        "role": profile.role,
+        "school": profile.school,
+        "state": profile.state
+    }), 200
+
+@app.route('/update-admin-profile', methods=['POST'])
+def update_admin_profile():
+    data = request.get_json()
+    email = data.get('email')
+    if not email:
+        return jsonify({"message": "Email is required"}), 400
+        
+    profile = AdminProfile.query.filter_by(email=email).first()
+    if not profile:
+        return jsonify({"message": "Admin profile not found"}), 404
+        
+    # Only update allowed fields
+    profile.phone = data.get('phone', profile.phone)
+    profile.school = data.get('school', profile.school)
+    profile.state = data.get('state', profile.state)
+    
+    try:
+        db.session.commit()
+        return jsonify({"message": "Profile updated successfully!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/change-password', methods=['POST'])
+def change_password():
+    data = request.get_json()
+    email = data.get('email')
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not all([email, current_password, new_password]):
+        return jsonify({"message": "Missing required fields"}), 400
+        
+    user = User.query.filter_by(email=email, role='Admin').first()
+    if not user:
+        return jsonify({"message": "Admin user not found"}), 404
+        
+    if user.password != current_password:
+        return jsonify({"message": "Incorrect current password"}), 401
+        
+    user.password = new_password
+    try:
+        db.session.commit()
+        return jsonify({"message": "Password updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

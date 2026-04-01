@@ -1,0 +1,53 @@
+Active Users: 4
+User: Admin, Email: vidhyarakshaka@gmail.com, Role: Admin
+User: Parent of 101, Email: None, Role: Parent
+User: Yaswitha, Email: paruchuriyaswitha13@gmail.com, Role: Teacher
+User: sai, Email: paruchurisai9@gmail.com, Role: Teacher
+
+Total Teachers: 4
+Teacher: john, Email: john@example.com, Class: 10th B, School: 102
+Teacher: Yaswitha, Email: paruchuriyaswitha13@gmail.com, Class: 2, School: 102
+Teacher: sai, Email: paruchurisai9@gmail.com, Class: 1, School: 102
+Teacher: ravi, Email: paruchuribhadrachalam12@gmail.com, Class: 3, School: 102
+
+Total Students: 40
+Student: ravi, Roll: 101, Class: 1st, School: 102
+Student: Sravani, Roll: 105, Class: 1, School: 102
+Student: Teja, Roll: 201, Class: 2, School: 102
+Student: Sujatha, Roll: 202, Class: 2, School: 102
+Student: Kavitha, Roll: 203, Class: 2, School: 102
+Student: Praveen, Roll: 204, Class: 2, School: 102
+Student: Praveen, Roll: 301, Class: 3, School: 102
+Student: Suresh, Roll: 302, Class: 3, School: 102
+Student: Harish, Roll: 303, Class: 3, School: 102
+Student: Satish, Roll: 304, Class: 3, School: 102
+Student: Suresh, Roll: 401, Class: 4, School: 102
+Student: Lakshmi, Roll: 402, Class: 4, School: 102
+Student: Mahesh, Roll: 403, Class: 4, School: 102
+Student: Akhila, Roll: 404, Class: 4, School: 102
+Student: Jyothi, Roll: 405, Class: 4, School: 102
+Student: Naveen, Roll: 501, Class: 5, School: 102
+Student: Jyothi, Roll: 502, Class: 5, School: 102
+Student: Anitha, Roll: 503, Class: 5, School: 102
+Student: Ganesh, Roll: 504, Class: 5, School: 102
+Student: Teja, Roll: 601, Class: 6, School: 102
+Student: Swathi, Roll: 602, Class: 6, School: 102
+Student: Mahesh, Roll: 603, Class: 6, School: 102
+Student: Rushithya, Roll: 604, Class: 6, School: 102
+Student: Bhavani, Roll: 701, Class: 7, School: 102
+Student: Radha, Roll: 702, Class: 7, School: 102
+Student: Anitha, Roll: 703, Class: 7, School: 102
+Student: Karthik, Roll: 704, Class: 7, School: 102
+Student: Venkatesh, Roll: 801, Class: 8, School: 102
+Student: Rushithya, Roll: 802, Class: 8, School: 102
+Student: Rushithya, Roll: 803, Class: 8, School: 102
+Student: Bhavani, Roll: 804, Class: 8, School: 102
+Student: Kiran, Roll: 901, Class: 9, School: 102
+Student: Radha, Roll: 902, Class: 9, School: 102
+Student: Rajesh, Roll: 903, Class: 9, School: 102
+Student: Rajesh, Roll: 904, Class: 9, School: 102
+Student: Suresh, Roll: 1001, Class: 10, School: 102
+Student: Sujatha, Roll: 1002, Class: 10, School: 102
+Student: Praveen, Roll: 1003, Class: 10, School: 102
+Student: Vennela, Roll: 106, Class: 1st, School: 102
+Student: Rahul Kumar, Roll: 1075, Class: 10th, School: 102

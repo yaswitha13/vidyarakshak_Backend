@@ -1,0 +1,2 @@
+TEACHERS TABLE: (('paruchurisai9@gmail.com', 'teacher123', 'APPROVED', '102', '1'),)
+USERS TABLE: (('paruchurisai9@gmail.com', 'Teacher@123', 'Teacher'),)

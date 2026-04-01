@@ -1,0 +1,58 @@
+
+--- Yaswitha Profile ---
+URL: http://127.0.0.1:5000/get-teacher-profile?email=paruchuriyaswitha13@gmail.com
+Status: 200
+Count: 1
+First 200 chars: {
+  "class_assigned": "2",
+  "email": "paruchuriyaswitha13@gmail.com",
+  "gender": null,
+  "name": "Yaswitha",
+  "phone": "963852741",
+  "school": "102",
+  "school_code": "102",
+  "teacher_id": "tch00
+
+--- Yaswitha Students (Class 2) ---
+URL: http://127.0.0.1:5000/get-students?school_code=102&class_name=2
+Status: 200
+Count: 4
+First 200 chars: [
+  {
+    "absent_days": 0,
+    "address": "H.No 17, Station Road",
+    "attendance": 100.0,
+    "attendance_percentage": 100.0,
+    "class_name": "2",
+    "distance": "15 km",
+    "dob": "04-07-2019"
+
+--- Sai Students (Class 1) ---
+URL: http://127.0.0.1:5000/get-students?school_code=102&class_name=1
+Status: 200
+Count: 3
+First 200 chars: [
+  {
+    "absent_days": 2,
+    "address": "andhra",
+    "attendance": 60.0,
+    "attendance_percentage": 60.0,
+    "class_name": "1st",
+    "distance": "6",
+    "dob": "22/3/2026",
+    "family_income
+
+--- All School 102 Students ---
+URL: http://127.0.0.1:5000/get-students?school_code=102
+Status: 200
+Count: 40
+First 200 chars: [
+  {
+    "absent_days": 2,
+    "address": "andhra",
+    "attendance": 60.0,
+    "attendance_percentage": 60.0,
+    "class_name": "1st",
+    "distance": "6",
+    "dob": "22/3/2026",
+    "family_income

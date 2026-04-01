@@ -1,0 +1,8 @@
+--- PARENT USERS ---
+ID: 7 | RollNo: '1001' | SchoolCode: '32' | Pwd: 123456789
+ID: 9 | RollNo: '1001' | SchoolCode: '32' | Pwd: 123456789
+
+--- ALL STUDENTS ---
+ID: 4 | RollNo: '1001' | SchoolCode: 'VDY-102'
+ID: 5 | RollNo: '1002' | SchoolCode: 'VDY-102'
+ID: 6 | RollNo: '1003' | SchoolCode: 'VDY-102'

@@ -1,0 +1,65 @@
+
+Windows IP Configuration
+
+   Host Name . . . . . . . . . . . . : LAPTOP-5LCS4K94
+   Primary Dns Suffix  . . . . . . . : 
+   Node Type . . . . . . . . . . . . : Mixed
+   IP Routing Enabled. . . . . . . . : No
+   WINS Proxy Enabled. . . . . . . . : No
+
+Ethernet adapter Ethernet 2:
+
+   Media State . . . . . . . . . . . : Media disconnected
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : ExpressVPN TAP Adapter
+   Physical Address. . . . . . . . . : 00-FF-00-35-F2-15
+   DHCP Enabled. . . . . . . . . . . : Yes
+   Autoconfiguration Enabled . . . . : Yes
+
+Unknown adapter Local Area Connection:
+
+   Media State . . . . . . . . . . . : Media disconnected
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : ExpressVPN Wintun Driver
+   Physical Address. . . . . . . . . : 
+   DHCP Enabled. . . . . . . . . . . : No
+   Autoconfiguration Enabled . . . . : Yes
+
+Wireless LAN adapter Local Area Connection* 1:
+
+   Media State . . . . . . . . . . . : Media disconnected
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : Microsoft Wi-Fi Direct Virtual Adapter
+   Physical Address. . . . . . . . . : 16-13-33-26-D0-2D
+   DHCP Enabled. . . . . . . . . . . : Yes
+   Autoconfiguration Enabled . . . . : Yes
+
+Wireless LAN adapter Local Area Connection* 2:
+
+   Media State . . . . . . . . . . . : Media disconnected
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : Microsoft Wi-Fi Direct Virtual Adapter #2
+   Physical Address. . . . . . . . . : 16-13-33-26-D0-3D
+   DHCP Enabled. . . . . . . . . . . : Yes
+   Autoconfiguration Enabled . . . . : Yes
+
+Wireless LAN adapter Wi-Fi:
+
+   Connection-specific DNS Suffix  . : 
+   Description . . . . . . . . . . . : MediaTek MT7921 Wi-Fi 6 802.11ax PCIe Adapter
+   Physical Address. . . . . . . . . : 14-13-33-26-D0-1D
+   DHCP Enabled. . . . . . . . . . . : Yes
+   Autoconfiguration Enabled . . . . : Yes
+   Link-local IPv6 Address . . . . . : fe80::56e6:ef37:9a54:c911%9(Preferred) 
+   IPv4 Address. . . . . . . . . . . : 192.168.35.109(Preferred) 
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Lease Obtained. . . . . . . . . . : Thursday, 12 March 2026 9:54:48 am
+   Lease Expires . . . . . . . . . . : Thursday, 12 March 2026 11:24:56 am
+   Default Gateway . . . . . . . . . : fe80::e486:77ff:fef8:fce7%9
+                                       192.168.35.142
+   DHCP Server . . . . . . . . . . . : 192.168.35.142
+   DHCPv6 IAID . . . . . . . . . . . : 135533363
+   DHCPv6 Client DUID. . . . . . . . : 00-01-00-01-2D-7E-29-48-14-13-33-26-D0-1D
+   DNS Servers . . . . . . . . . . . : 192.168.35.142
+                                       2401:4900:627e:2fca::59
+   NetBIOS over Tcpip. . . . . . . . : Enabled
