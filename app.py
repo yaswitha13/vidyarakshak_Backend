@@ -472,6 +472,7 @@ def calculate_dropout_risk(s):
             history_entry = RiskHistory(student_id=s.id, risk_level=s.risk_level)
             db.session.add(history_entry)
 
+@app.route('/api/parent/register', methods=['POST'])
 @app.route('/signup', methods=['POST'])
 def signup():
     data = request.get_json()
@@ -482,20 +483,36 @@ def signup():
     email = data.get('email')
     password = data.get('password')
     confirm_password = data.get('confirm_password')
-    role = data.get('role', 'Admin')
+    
+    # Auto-detect role if missing based on URL
+    role_default = 'Parent' if 'parent' in request.path.lower() else 'Admin'
+    role = str(data.get('role') or role_default).strip().title()
+    if role == 'Administrator':
+        role = 'Admin'
     
     if role == 'Admin':
         return jsonify({"message": "Admin registration is restricted. Please contact system administrator."}), 403
         
-    school_code = data.get('school_code')
+    school_code = str(data.get('school_code') or '').strip()
     if not school_code:
         return jsonify({"message": "School Code is required for registration"}), 400
-    school_code = str(school_code).strip()
+        
     class_assigned = data.get('class_assigned')
-    roll_no = data.get('roll_no')
+    roll_no = str(data.get('roll_no') or data.get('roll_number') or '').strip()
 
-    if not all([full_name, password, confirm_password]):
-        return jsonify({"message": "Please enter all required details"}), 400
+    # Role-based validation
+    if role == 'Parent':
+        if not all([roll_no, password, confirm_password]):
+            return jsonify({"message": "Please enter all required details"}), 400
+        
+        # Auto-fetch student name as full_name for parents
+        student = Student.query.filter_by(roll_no=roll_no, school_code=school_code).first()
+        if not student:
+            return jsonify({"message": "Student not found with this roll number."}), 404
+        full_name = student.name
+    else:
+        if not all([full_name, password, confirm_password]):
+            return jsonify({"message": "Please enter all required details"}), 400
 
     if password != confirm_password:
         return jsonify({"message": "Passwords do not match"}), 400
@@ -1599,13 +1616,29 @@ def student_stats():
         
     return jsonify(stats), 200
 
+@app.route('/api/teacher/login', methods=['POST'])
+@app.route('/api/admin/login', methods=['POST'])
+@app.route('/api/parent/login', methods=['POST'])
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     if not data:
         return jsonify({"message": "No input data provided"}), 400
 
-    role = data.get('role', 'Admin')
+    # Auto-detect role if missing based on URL
+    path_norm = request.path.lower()
+    if 'teacher' in path_norm:
+        role_default = 'Teacher'
+    elif 'admin' in path_norm:
+        role_default = 'Admin'
+    elif 'parent' in path_norm:
+        role_default = 'Parent'
+    else:
+        role_default = 'Admin'
+        
+    role = str(data.get('role') or role_default).strip().title()
+    if role == 'Administrator':
+        role = 'Admin'
     school_code = str(data.get('school_code', '')).strip()
     password = str(data.get('password', '')).strip()
     
@@ -1763,19 +1796,25 @@ def login():
             
         db.session.commit()
 
+        user_response = {
+            "full_name": user.full_name if hasattr(user, 'full_name') else user.name,
+            "role": role
+        }
+        
+        # Only include class_assigned for Teachers, not for Admins
+        if role == 'Teacher':
+            user_response["class_assigned"] = user.class_assigned if hasattr(user, 'class_assigned') else None
+            
         return jsonify({
             "message": "Login successful",
-            "user": {
-                "full_name": user.full_name if hasattr(user, 'full_name') else user.name,
-                "role": role,
-                "class_assigned": user.class_assigned if hasattr(user, 'class_assigned') else None
-            }
+            "user": user_response
         }), 200
     else:
         return jsonify({"message": "Invalid credentials for this school code"}), 401
 
 # ── Teacher Management ──────────────────────────────────────────────────────
 
+@app.route('/api/admin/add-teacher', methods=['POST'])
 @app.route('/add-teacher', methods=['POST'])
 def add_teacher():
     data = request.get_json()
@@ -1812,6 +1851,7 @@ def add_teacher():
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
+@app.route('/api/admin/get-teachers', methods=['GET'])
 @app.route('/get-teachers', methods=['GET'])
 def get_teachers():
     school_code = request.args.get('school_code')
@@ -1910,6 +1950,7 @@ def recent_high_risk():
 
 # ── Teacher Profile Endpoints ────────────────────────────────────────────────
 
+@app.route('/api/teacher/profile', methods=['GET'])
 @app.route('/get-teacher-profile', methods=['GET'])
 def get_teacher_profile():
     email = request.args.get('email', '').strip().lower()
@@ -1932,20 +1973,28 @@ def get_teacher_profile():
         "class_assigned": teacher.class_assigned
     }), 200
 
+@app.route('/api/teacher/profile/update', methods=['POST'])
 @app.route('/update-teacher-profile', methods=['POST'])
 def update_teacher_profile():
     data = request.get_json()
-    old_email = data.get('old_email') # To identify the record
-    new_email = data.get('email')     # Editable
-    
-    if not old_email or not new_email:
-        return jsonify({"message": "Email is required"}), 400
+    if not data:
+        return jsonify({"message": "No data provided"}), 400
         
-    teacher = Teacher.query.filter_by(email=old_email).first()
+    # Identify target via email (which is locked in UI) or teacher_id
+    target_email = data.get('old_email') or data.get('email')
+    teacher_id = data.get('teacher_id')
+    
+    teacher = None
+    if target_email:
+        teacher = Teacher.query.filter_by(email=target_email).first()
+    if not teacher and teacher_id:
+        teacher = Teacher.query.filter_by(teacher_id=teacher_id).first()
+
     if not teacher:
-        return jsonify({"message": "Teacher not found"}), 404
+        return jsonify({"message": f"Teacher profile not found for identifier: {target_email or teacher_id}"}), 404
         
     # Update Teacher table directly
+    new_email = data.get('email', teacher.email)
     teacher.email = new_email
     teacher.name = data.get('name', teacher.name)
     teacher.phone = data.get('phone', teacher.phone)
@@ -1964,7 +2013,9 @@ def update_teacher_profile():
 def change_password():
     data = request.get_json()
     email = data.get('email')
-    role = data.get('role', 'Admin')
+    role = str(data.get('role') or 'Admin').strip().title()
+    if role == 'Administrator':
+        role = 'Admin'
     current_password = data.get('old_password') or data.get('current_password')
     new_password = data.get('new_password')
     school_code = data.get('school_code')
@@ -2010,7 +2061,9 @@ def change_password():
 def forgot_password():
     data = request.get_json()
     email = data.get('email')
-    role = data.get('role')
+    role = str(data.get('role') or '').strip().title()
+    if role == 'Administrator':
+        role = 'Admin'
 
     if not email or not role:
         return jsonify({"message": "Email and role are required"}), 400
@@ -2057,7 +2110,9 @@ def forgot_password():
 def verify_otp():
     data = request.get_json()
     email = data.get('email')
-    role = data.get('role')
+    role = str(data.get('role') or '').strip().title()
+    if role == 'Administrator':
+        role = 'Admin'
     otp_code = data.get('otp_code')
 
     if not all([email, role, otp_code]):
@@ -2079,7 +2134,9 @@ def verify_otp():
 def reset_password():
     data = request.get_json()
     email = data.get('email')
-    role = data.get('role')
+    role = str(data.get('role') or '').strip().title()
+    if role == 'Administrator':
+        role = 'Admin'
     otp_code = data.get('otp_code')
     new_password = data.get('new_password')
 
@@ -2122,74 +2179,6 @@ def reset_password():
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@app.route('/api/admin/profile/<email>', methods=['GET'])
-def api_get_admin_profile(email):
-    admin_prof = AdminProfile.query.filter_by(email=email).first()
-    if not admin_prof:
-        # Auto-create if not exists
-        user = User.query.filter(
-            User.email == email,
-            User.role.in_(['Admin', 'Administrator'])
-        ).first()
-        if user:
-            admin_prof = AdminProfile(email=email, name=user.full_name, role='Administrator')
-            db.session.add(admin_prof)
-            try:
-                db.session.commit()
-            except:
-                db.session.rollback()
-        else:
-            return jsonify({"message": "Admin profile not found."}), 404
-        
-    return jsonify({
-        "name": admin_prof.name,
-        "email": admin_prof.email,
-        "phone": admin_prof.phone,
-        "gender": admin_prof.gender,
-        "role": admin_prof.role,
-        "school": admin_prof.school,
-        "state": admin_prof.state
-    }), 200
-
-@app.route('/api/admin/profile/update', methods=['POST'])
-def api_update_admin_profile():
-    data = request.get_json()
-    email = data.get('email')
-    if not email:
-        return jsonify({"message": "Email is required to identify admin."}), 400
-        
-    admin_prof = AdminProfile.query.filter_by(email=email).first()
-    if not admin_prof:
-        # Auto-create if not exists
-        user = User.query.filter(
-            User.email == email,
-            User.role.in_(['Admin', 'Administrator'])
-        ).first()
-        if user:
-            admin_prof = AdminProfile(email=email, name=user.full_name, role='Administrator')
-            db.session.add(admin_prof)
-        else:
-            return jsonify({"message": "Admin profile not found."}), 404
-        
-    admin_prof.name = data.get('name', admin_prof.name)
-    admin_prof.phone = data.get('phone', admin_prof.phone)
-    admin_prof.gender = data.get('gender', admin_prof.gender)
-    admin_prof.school = data.get('school', admin_prof.school)
-    admin_prof.state = data.get('state', admin_prof.state)
-    
-    user = User.query.filter(
-        User.email == email,
-        User.role.in_(['Admin', 'Administrator'])
-    ).first()
-    if user:
-        user.full_name = data.get('name', user.full_name)
-    
-    try:
-        db.session.commit()
-        return jsonify({"message": "Admin profile updated successfully!"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": f"Database error: {str(e)}"}), 500
 
 @app.route('/api/student/<student_id>/risk-history', methods=['GET'])
 def get_student_risk_history(student_id):
@@ -2242,76 +2231,83 @@ def get_student_risk_history_v2(school_code, roll_no):
         return jsonify([]), 200
     return get_student_risk_history(student.id)
 
-# --- ADMIN PROFILE ENDPOINTS ---
+# --- UNIFIED ADMIN PROFILE MANAGEMENT ---
+@app.route('/api/admin/profile/<id_or_email>', methods=['GET', 'POST', 'PUT'])
+@app.route('/api/admin/profile/update', methods=['POST', 'PUT'])
+@app.route('/update-admin-profile', methods=['POST', 'PUT'])
 @app.route('/get-admin-profile', methods=['GET'])
-@app.route('/api/admin/profile/<email>', methods=['GET'])
-def get_admin_profile(email=None):
-    if email is None:
-        email = request.args.get('email')
+def handle_admin_profile(id_or_email=None):
+    data = request.get_json() if request.method in ['POST', 'PUT'] else {}
     
-    if not email:
-        return jsonify({"success": False, "message": "Email is required"}), 400
+    # Identify target via URL param, query param, or body
+    target = id_or_email or request.args.get('email') or data.get('email')
+    
+    if not target:
+        return jsonify({"success": False, "message": "Email or ID is required"}), 400
         
-    admin = AdminProfile.query.filter_by(email=email).first()
+    # Lookup by ID (if numeric) or Email
+    admin = None
+    if str(target).isdigit():
+        admin = db.session.get(AdminProfile, int(target))
+    
     if not admin:
-        # Check if user exists as admin
-        user = User.query.filter(
-            User.email == email,
-            User.role.in_(['Admin', 'Administrator'])
-        ).first()
+        admin = AdminProfile.query.filter_by(email=target).first()
+        
+    if request.method == 'GET':
+        if not admin:
+             # Check if user exists as admin and auto-create profile
+             user = User.query.filter(User.email == target, User.role.in_(['Admin', 'Administrator'])).first()
+             if user:
+                 admin = AdminProfile(email=target, name=user.full_name, role='Administrator')
+                 db.session.add(admin)
+                 db.session.commit()
+             else:
+                 return jsonify({"success": False, "message": "Admin profile not found"}), 404
+        
+        return jsonify({
+            "success": True,
+            "name": admin.name,
+            "email": admin.email,
+            "phone": admin.phone,
+            "gender": admin.gender,
+            "role": admin.role,
+            "school": admin.school,
+            "state": admin.state
+        }), 200
+
+    elif request.method in ['POST', 'PUT']:
+        if not admin:
+            # Check if user existed to allow profile creation
+            req_email = data.get('email') or (target if "@" in str(target) else None)
+            if not req_email:
+                return jsonify({"success": False, "message": "Admin profile not found and no email provided to create one"}), 404
+                
+            user = User.query.filter(User.email == req_email, User.role.in_(['Admin', 'Administrator'])).first()
+            if user:
+                admin = AdminProfile(email=req_email, name=data.get('name', user.full_name))
+                db.session.add(admin)
+            else:
+                return jsonify({"success": False, "message": "Admin user account not found"}), 404
+        
+        # Update fields
+        admin.name = data.get('name', admin.name)
+        admin.phone = data.get('phone', admin.phone)
+        admin.gender = data.get('gender', admin.gender)
+        admin.school = data.get('school', admin.school)
+        admin.state = data.get('state', admin.state)
+        
+        # Sync name with User table if it exists
+        user = User.query.filter_by(email=admin.email).first()
         if user:
-            # Create a default profile
-            admin = AdminProfile(name=user.full_name, email=email)
-            db.session.add(admin)
+            user.full_name = admin.name
+            
+        try:
             db.session.commit()
-        else:
-            return jsonify({"success": False, "message": "Admin profile not found"}), 404
-
-    return jsonify({
-        "success": True,
-        "name": admin.name,
-        "email": admin.email,
-        "phone": admin.phone,
-        "gender": admin.gender,
-        "role": admin.role,
-        "school": admin.school,
-        "state": admin.state
-    }), 200
-
-@app.route('/update-admin-profile', methods=['POST'])
-@app.route('/api/admin/profile/update', methods=['POST'])
-def update_admin_profile():
-    data = request.json
-    email = data.get('email')
-    if not email:
-        return jsonify({"success": False, "message": "Email is required"}), 400
-        
-    admin = AdminProfile.query.filter_by(email=email).first()
-    if not admin:
-        admin = AdminProfile(email=email)
-        admin.name = data.get('name', '')
-        db.session.add(admin)
-        
-    admin.name = data.get('name', admin.name)
-    admin.phone = data.get('phone', admin.phone)
-    admin.gender = data.get('gender', admin.gender)
-    admin.school = data.get('school', admin.school)
-    admin.state = data.get('state', admin.state)
-    
-    # Optional sync with User table if name changed
-    user = User.query.filter(
-        User.email == email,
-        User.role.in_(['Admin', 'Administrator'])
-    ).first()
-    if user and admin.name:
-        user.full_name = admin.name
-        
-    try:
-        db.session.commit()
-        return jsonify({"success": True, "message": "Profile updated successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "message": str(e)}), 500
+            return jsonify({"success": True, "message": "Profile updated successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"success": False, "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host=app.config['FLASK_HOST'], port=app.config['FLASK_PORT'])
+
