@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event, func, case, text
@@ -9,7 +9,15 @@ import threading
 from email.mime.text import MIMEText
 from config import Config
 
-app = Flask(__name__)
+# Change app initialization to find templates and static files in the website folder
+# Since app.py is in backend/, we go up one level to VidhyaRakshak/ and then to website/
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'website'))
+static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'website'))
+
+app = Flask(__name__, 
+            template_folder=template_dir,
+            static_folder=static_dir,
+            static_url_path='')
 CORS(app)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
@@ -52,6 +60,7 @@ class Teacher(db.Model):
 
     def __repr__(self):
         return f'<Teacher {self.name} ({self.status})>'
+#Rendors
 
 # Admin Profile Model
 class AdminProfile(db.Model):
@@ -216,9 +225,143 @@ class OTP(db.Model):
 with app.app_context():
     db.create_all()
 
+# --- PAGE RENDERS ---
 @app.route('/')
-def home():
-    return "<h1>VidyaRakshak Backend is Running!</h1><p>The server is reachable from your mobile.</p>"
+@app.route('/index')
+def index():
+    return render_template('index.html')
+
+@app.route('/about_app')
+def about_app():
+    return render_template('about_app.html')
+
+@app.route('/about_project')
+def about_project():
+    return render_template('about_project.html')
+
+@app.route('/admin_about_app')
+def admin_about_app():
+    return render_template('admin_about_app.html')
+
+@app.route('/admin_alerts')
+def admin_alerts():
+    return render_template('admin_alerts.html')
+
+@app.route('/admin_change_password')
+def admin_change_password():
+    return render_template('admin_change_password.html')
+
+@app.route('/admin_counseling')
+def admin_counseling():
+    return render_template('admin_counseling.html')
+
+@app.route('/admin_dashboard')
+def admin_dashboard():
+    return render_template('admin_dashboard.html')
+
+@app.route('/admin_edit_profile')
+def admin_edit_profile():
+    return render_template('admin_edit_profile.html')
+
+@app.route('/admin_privacy_policy')
+def admin_privacy_policy():
+    return render_template('admin_privacy_policy.html')
+
+@app.route('/admin_profile')
+def admin_profile():
+    return render_template('admin_profile.html')
+
+@app.route('/admin_students')
+def admin_students():
+    return render_template('admin_students.html')
+
+@app.route('/admin_teachers')
+def admin_teachers():
+    return render_template('admin_teachers.html')
+
+@app.route('/forgot_password', methods=['GET'])
+def forgot_password_page():
+    return render_template('forgot_password.html')
+
+@app.route('/login_admin')
+def login_admin():
+    return render_template('login_admin.html')
+
+@app.route('/login_parent')
+def login_parent():
+    return render_template('login_parent.html')
+
+@app.route('/login_teacher')
+def login_teacher():
+    return render_template('login_teacher.html')
+
+@app.route('/new_password')
+def new_password():
+    return render_template('new_password.html')
+
+@app.route('/parent_alerts')
+def parent_alerts():
+    return render_template('parent_alerts.html')
+
+@app.route('/parent_counseling')
+def parent_counseling():
+    return render_template('parent_counseling.html')
+
+@app.route('/parent_dashboard')
+def parent_dashboard():
+    return render_template('parent_dashboard.html')
+
+@app.route('/parent_profile')
+def parent_profile():
+    return render_template('parent_profile.html')
+
+@app.route('/privacy_policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+
+@app.route('/signup', methods=['GET'])
+def signup_page():
+    return render_template('signup.html')
+
+@app.route('/support_desk')
+def support_desk():
+    return render_template('support_desk.html')
+
+@app.route('/teacher_add_student')
+def teacher_add_student():
+    return render_template('teacher_add_student.html')
+
+@app.route('/teacher_airisk')
+def teacher_airisk():
+    return render_template('teacher_airisk.html')
+
+@app.route('/teacher_alerts')
+def teacher_alerts():
+    return render_template('teacher_alerts.html')
+
+@app.route('/teacher_attendance')
+def teacher_attendance():
+    return render_template('teacher_attendance.html')
+
+@app.route('/teacher_counseling')
+def teacher_counseling():
+    return render_template('teacher_counseling.html')
+
+@app.route('/teacher_dashboard')
+def teacher_dashboard():
+    return render_template('teacher_dashboard.html')
+
+@app.route('/teacher_profile')
+def teacher_profile():
+    return render_template('teacher_profile.html')
+
+@app.route('/teacher_students')
+def teacher_students():
+    return render_template('teacher_students.html')
+
+@app.route('/verify_otp', methods=['GET'])
+def verify_otp_page():
+    return render_template('verify_otp.html')
 
 def send_otp_email_thread(to_email, otp_code, app_instance):
     with app_instance.app_context():
